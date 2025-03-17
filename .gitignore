@@ -20,6 +20,7 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+poetry.lock
 
 # Virtual Environments
 env/
