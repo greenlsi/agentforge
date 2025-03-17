@@ -1,25 +1,40 @@
 #!/usr/bin/env python3
 """
-Ejemplo simple de uso del framework Atomic Agents con Instructor
+Ejemplo de uso del framework AgentForge
 """
 
 import asyncio
 import os
 import logging
+from pathlib import Path
 from dotenv import load_dotenv
 
 from agentforge_core import AgentSystem
 from agentforge_core.llm import OpenAIProvider
 from agentforge_core.agent.frameworks import AtomicAgentsFramework, CustomAgentFramework
 
+# Cargar variables de entorno (.env en directorio actual o padres)
+dotenv_path = Path('.env')
+if dotenv_path.exists():
+    load_dotenv(dotenv_path=dotenv_path)
+else:
+    # Buscar en directorios superiores
+    parent = Path().absolute()
+    for _ in range(3):  # Buscar hasta 3 niveles arriba
+        parent = parent.parent
+        dotenv_path = parent / '.env'
+        if dotenv_path.exists():
+            load_dotenv(dotenv_path=dotenv_path)
+            break
+    else:
+        print("ADVERTENCIA: No se encontró archivo .env - Se usarán variables de entorno del sistema si existen")
+        load_dotenv()  # Intentar cargar de todas formas
+
 # Configurar logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, os.getenv("AGENTFORGE_LOG_LEVEL", "INFO").upper()),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
-
-# Cargar variables de entorno
-load_dotenv()
 
 # Definir un procesador simple para el agente Custom
 async def simple_processor(agent, message):
@@ -58,13 +73,17 @@ async def main():
     # Crear sistema
     system = AgentSystem()
     
-    # Añadir proveedores (con claves de API desde variables de entorno)
-    if os.getenv("OPENAI_API_KEY"):
-        system.add_provider(OpenAIProvider(api_key=os.getenv("OPENAI_API_KEY")))
+    # Obtener API key
+    openai_api_key = os.getenv("OPENAI_API_KEY")
     
-    if not system.providers:
-        print("ERROR: No se encontró la clave de API para OpenAI. Por favor configura la variable de entorno OPENAI_API_KEY.")
+    # Verificar API keys
+    if not openai_api_key:
+        print("ERROR: No se encontró la variable de entorno OPENAI_API_KEY.")
+        print("Por favor, configura esta variable en el archivo .env o en las variables de entorno del sistema.")
         return
+    
+    # Añadir proveedores
+    system.add_provider(OpenAIProvider(api_key=openai_api_key))
     
     # Ejemplo 1: Usando Custom Agents Framework
     print("\n=== Ejemplo 1: Usando Custom Agents Framework ===")
@@ -97,15 +116,16 @@ async def main():
     # Detener el sistema
     system.stop()
     
-    # Ejemplo 2: Usando Atomic Agents con Instructor
+    # Ejemplo 2: Usando Atomic Agents
     try:
         import instructor
+        import atomic_agents
         
-        print("\n=== Ejemplo 2: Usando Atomic Agents con Instructor ===")
+        print("\n=== Ejemplo 2: Usando Atomic Agents ===")
         
         # Configurar framework de Atomic Agents
         atomic_framework = AtomicAgentsFramework({
-            "api_key": os.getenv("OPENAI_API_KEY")
+            "api_key": openai_api_key
         })
         system.set_framework(atomic_framework)
         
@@ -117,35 +137,23 @@ async def main():
             system_prompt="Eres un asistente virtual amable y servicial que proporciona respuestas claras y concisas."
         )
         
-        planificador = system.create_agent(
-            "planificador",
-            name="Planificador",
-            role="experto en planificación",
-            system_prompt="Eres un planificador experto que desarrolla planes detallados y estructurados para cualquier tarea o proyecto."
-        )
-        
         # Iniciar el sistema
         system.start()
         
-        # Probar con un mensaje para el asistente
+        # Probar con un mensaje
         print("\n> Enviando mensaje al asistente (Atomic Framework)")
-        resultado_asistente = await system.process_message("asistente_atomic", {
+        resultado_atomic = await system.process_message("asistente_atomic", {
             "content": "¿Puedes recomendarme algunas películas recientes?"
         })
-        print(f"Respuesta: {resultado_asistente.get('response')}")
-        
-        # Probar con un mensaje para el planificador
-        print("\n> Enviando mensaje al planificador (Atomic Framework)")
-        resultado_planificador = await system.process_message("planificador", {
-            "content": "Necesito organizar una conferencia virtual para 100 personas"
-        })
-        print(f"Respuesta: {resultado_planificador.get('response')}")
+        print(f"Respuesta: {resultado_atomic.get('response')}")
         
         # Detener el sistema
         system.stop()
-    except ImportError:
-        print("\nNota: No se pudo inicializar AtomicAgentsFramework porque 'instructor' no está instalado.")
-        print("Instálalo con: pip install instructor")
+    except ImportError as e:
+        print(f"\nNota: No se pudo ejecutar el ejemplo de Atomic Agents: {e}")
+        print("Para ejecutar este ejemplo, asegúrate de tener instaladas las dependencias necesarias:")
+        print("  - instructor (pip install instructor)")
+        print("  - atomic-agents (pip install git+https://github.com/BrainBlend-AI/atomic-agents.git)")
 
 if __name__ == "__main__":
     asyncio.run(main())

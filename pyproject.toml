@@ -1,0 +1,21 @@
+[project]
+name = "agentforge"
+version = "0.1.0"
+description = "My framework for AI agents projects"
+authors = [
+    {name = "Jose M. Moya",email = "jm.moya@upm.es"}
+]
+license = {text = "Proprietary"}
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "atomic-agents (>=1.0.23,<2.0.0)",
+    "openai (>=1.66.3,<2.0.0)",
+    "groq (>=0.19.0,<0.20.0)",
+    "instructor (>=1.7.7,<2.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
